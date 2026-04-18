@@ -1,7 +1,7 @@
 import os
 import uuid
 from flask import Flask, request, jsonify, render_template
-import vercel_blob
+from vercel import blob
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 
@@ -21,11 +21,18 @@ def deduplicate_lines(text):
 def save_to_blob(content, prefix="result"):
     """将文本内容保存到 Vercel Blob，返回文件的访问 URL"""
     filename = f"{prefix}_{uuid.uuid4().hex}.txt"
-    file_bytes = content.encode('utf-8')
-    
-    # 使用修正后的调用方式
-    blob_info = vercel_blob.put(filename, file_bytes)
-    return blob_info.get('url')
+    # 使用官方 SDK 的 upload_file 方法
+    try:
+        uploaded_file = blob.upload_file(
+            path=filename,
+            access="public",
+            data=content.encode('utf-8')
+        )
+        return uploaded_file['url']
+    except Exception as e:
+        # 打印详细的错误日志，方便调试
+        print(f"Blob upload error: {e}")
+        return None
 
 @app.route('/')
 def index():
@@ -39,22 +46,23 @@ def process():
 
     user_text = data['text']
     try:
-        # 可选：保存原始输入
+        # 保存原始输入到 Blob
         original_url = save_to_blob(user_text, prefix="input")
-        print(f"原始输入已保存至: {original_url}")
+        if original_url:
+            print(f"原始输入已保存至: {original_url}")
 
         result_text = deduplicate_lines(user_text)
 
-        # 保存去重结果
+        # 保存去重结果到 Blob
         result_url = save_to_blob(result_text, prefix="output")
-        print(f"去重结果已保存至: {result_url}")
+        if result_url:
+            print(f"去重结果已保存至: {result_url}")
 
         return jsonify({'result': result_text})
     except Exception as e:
+        # 打印详细的错误日志到 Vercel Functions 控制台
+        print(f"Processing error: {e}")
         return jsonify({'error': f'处理失败: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-# 确保 Vercel 可以找到 Flask 实例
-app = app
