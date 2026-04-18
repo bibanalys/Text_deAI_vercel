@@ -1,42 +1,14 @@
 import os
 import uuid
 from flask import Flask, request, jsonify, render_template
+# 1. 关键修改：使用官方推荐的导入方式
 from vercel import blob
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 
 def deduplicate_lines(text):
-    """按行去重，保持原有顺序"""
-    if not text:
-        return ""
-    lines = text.splitlines()
-    seen = set()
-    unique_lines = []
-    for line in lines:
-        if line not in seen:
-            seen.add(line)
-            unique_lines.append(line)
-    return '\n'.join(unique_lines)
-
-def save_to_blob(content, prefix="result"):
-    """将文本内容保存到 Vercel Blob，返回文件的访问 URL"""
-    filename = f"{prefix}_{uuid.uuid4().hex}.txt"
-    # 使用官方 SDK 的 upload_file 方法
-    try:
-        uploaded_file = blob.upload_file(
-            path=filename,
-            access="public",
-            data=content.encode('utf-8')
-        )
-        return uploaded_file['url']
-    except Exception as e:
-        # 打印详细的错误日志，方便调试
-        print(f"Blob upload error: {e}")
-        return None
-
-@app.route('/')
-def index():
-    return render_template('index.html')
+    # ... (你的去重逻辑保持不变) ...
+    return unique_text
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -46,23 +18,22 @@ def process():
 
     user_text = data['text']
     try:
-        # 保存原始输入到 Blob
-        original_url = save_to_blob(user_text, prefix="input")
-        if original_url:
-            print(f"原始输入已保存至: {original_url}")
-
+        # 1. 去重处理
         result_text = deduplicate_lines(user_text)
 
-        # 保存去重结果到 Blob
-        result_url = save_to_blob(result_text, prefix="output")
-        if result_url:
-            print(f"去重结果已保存至: {result_url}")
+        # 2. 使用官方 SDK 上传结果
+        # 生成唯一文件名
+        filename = f"result_{uuid.uuid4().hex}.txt"
+        # 2.1 调用官方 SDK 的 put 方法上传文件
+        # 注意：这里的参数名是 path 和 body
+        uploaded_blob = blob.put(path=filename, body=result_text.encode('utf-8'), access="public")
+        
+        # 2.2 可选：打印出上传后的文件URL，方便调试
+        print(f"File uploaded to Vercel Blob: {uploaded_blob['url']}")
 
+        # 3. 向前端返回去重后的文本
         return jsonify({'result': result_text})
     except Exception as e:
-        # 打印详细的错误日志到 Vercel Functions 控制台
-        print(f"Processing error: {e}")
+        # 打印详细的错误信息到Vercel日志
+        print(f"Error in /process: {str(e)}")
         return jsonify({'error': f'处理失败: {str(e)}'}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
