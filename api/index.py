@@ -1,10 +1,8 @@
 import os
 import uuid
 from flask import Flask, request, jsonify, render_template
-#from vercel_blob import put
 import vercel_blob
 
-# 设置模板文件夹为上级目录的 templates 文件夹
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 
 def deduplicate_lines(text):
@@ -24,6 +22,8 @@ def save_to_blob(content, prefix="result"):
     """将文本内容保存到 Vercel Blob，返回文件的访问 URL"""
     filename = f"{prefix}_{uuid.uuid4().hex}.txt"
     file_bytes = content.encode('utf-8')
+    
+    # 使用修正后的调用方式
     blob_info = vercel_blob.put(filename, file_bytes)
     return blob_info.get('url')
 
@@ -55,6 +55,6 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-    
+
 # 确保 Vercel 可以找到 Flask 实例
 app = app
