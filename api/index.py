@@ -1,7 +1,8 @@
 import os
 import uuid
 from flask import Flask, request, jsonify, render_template
-from vercel_blob import put
+#from vercel_blob import put
+import vercel_blob
 
 # 设置模板文件夹为上级目录的 templates 文件夹
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
@@ -23,7 +24,7 @@ def save_to_blob(content, prefix="result"):
     """将文本内容保存到 Vercel Blob，返回文件的访问 URL"""
     filename = f"{prefix}_{uuid.uuid4().hex}.txt"
     file_bytes = content.encode('utf-8')
-    blob_info = put(filename, file_bytes)
+    blob_info = vercel_blob.put(filename, file_bytes)
     return blob_info.get('url')
 
 @app.route('/')
