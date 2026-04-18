@@ -3,7 +3,8 @@ import uuid
 from flask import Flask, request, jsonify, render_template
 from vercel_blob import put
 
-app = Flask(__name__)
+# 设置模板文件夹为上级目录的 templates 文件夹
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'))
 
 def deduplicate_lines(text):
     """按行去重，保持原有顺序"""
@@ -53,3 +54,6 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+    
+# 确保 Vercel 可以找到 Flask 实例
+app = app
